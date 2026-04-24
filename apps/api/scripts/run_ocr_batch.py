@@ -46,6 +46,7 @@ def main() -> None:
     total = len(files)
     needs_ocr_count = 0
     warning_count = 0
+    by_engine: dict[str, int] = {}
 
     with output_path.open("w", encoding="utf-8") as fp:
         for idx, file_path in enumerate(files, start=1):
@@ -53,6 +54,7 @@ def main() -> None:
             payload = {
                 "file": str(file_path),
                 "source_type": result.source_type,
+                "engine": result.engine,
                 "needs_ocr": result.needs_ocr,
                 "text_length": len(result.full_text.strip()),
                 "pages": len(result.pages),
@@ -64,9 +66,10 @@ def main() -> None:
                 needs_ocr_count += 1
             if result.warnings:
                 warning_count += 1
+            by_engine[result.engine] = by_engine.get(result.engine, 0) + 1
 
             print(
-                f"[{idx}/{total}] {file_path.name}: type={result.source_type} "
+                f"[{idx}/{total}] {file_path.name}: type={result.source_type} engine={result.engine} "
                 f"text={payload['text_length']} needs_ocr={result.needs_ocr}"
             )
 
@@ -74,6 +77,7 @@ def main() -> None:
     print(f"Processed: {total}")
     print(f"Marked needs_ocr: {needs_ocr_count}")
     print(f"With warnings: {warning_count}")
+    print(f"By engine: {by_engine}")
     print(f"Results: {output_path}")
 
 

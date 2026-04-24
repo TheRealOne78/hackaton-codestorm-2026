@@ -34,6 +34,7 @@ class OcrResult(BaseModel):
     blocks: list[OcrBlock] = Field(default_factory=list)
     tables: list[OcrTable] = Field(default_factory=list)
     needs_ocr: bool
+    engine: str = "unknown"
     source_type: Literal["pdf", "image", "text", "unknown"] = "unknown"
     warnings: list[str] = Field(default_factory=list)
 

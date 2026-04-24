@@ -47,6 +47,7 @@ def test_ocr_endpoint_with_text_upload() -> None:
     payload = response.json()
     assert payload["data"]["source_type"] == "text"
     assert payload["data"]["needs_ocr"] is False
+    assert payload["data"]["engine"] == "raw-text"
 
 
 def test_pipeline_endpoint_with_text_upload() -> None:

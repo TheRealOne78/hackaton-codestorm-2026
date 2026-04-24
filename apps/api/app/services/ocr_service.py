@@ -119,6 +119,7 @@ def _build_result(
     page_count: int,
     needs_ocr: bool,
     source_type: str,
+    engine: str,
     warnings: list[str],
 ) -> OcrResult:
     normalized_pages = pages_text[:]
@@ -144,6 +145,7 @@ def _build_result(
         blocks=blocks,
         tables=[],
         needs_ocr=needs_ocr,
+        engine=engine,
         source_type=source_type,  # type: ignore[arg-type]
         warnings=warnings,
     )
@@ -160,25 +162,53 @@ def ocr_from_path(file_path: Path) -> OcrResult:
         extracted_len = sum(len(p.strip()) for p in text_pages)
 
         if extracted_len >= 200:
-            return _build_result(text_pages, page_count, needs_ocr=False, source_type=source_type, warnings=warnings)
+            return _build_result(
+                text_pages,
+                page_count,
+                needs_ocr=False,
+                source_type=source_type,
+                engine="pdftotext",
+                warnings=warnings,
+            )
 
         ocrmypdf_pages, ocrmypdf_error = _ocr_pdf_with_ocrmypdf(file_path)
         if ocrmypdf_error:
             warnings.append(ocrmypdf_error)
 
         if ocrmypdf_pages and sum(len(p.strip()) for p in ocrmypdf_pages) >= 50:
-            return _build_result(ocrmypdf_pages, page_count, needs_ocr=False, source_type=source_type, warnings=warnings)
+            return _build_result(
+                ocrmypdf_pages,
+                page_count,
+                needs_ocr=False,
+                source_type=source_type,
+                engine="ocrmypdf",
+                warnings=warnings,
+            )
 
         tesseract_pages, tesseract_error = _ocr_pdf_with_pdftoppm_tesseract(file_path, page_count)
         if tesseract_error:
             warnings.append(tesseract_error)
 
         if tesseract_pages and sum(len(p.strip()) for p in tesseract_pages) >= 30:
-            return _build_result(tesseract_pages, page_count, needs_ocr=False, source_type=source_type, warnings=warnings)
+            return _build_result(
+                tesseract_pages,
+                page_count,
+                needs_ocr=False,
+                source_type=source_type,
+                engine="pdftoppm+tesseract",
+                warnings=warnings,
+            )
 
         warnings.append("OCR produced very low text")
         fallback_pages = tesseract_pages or ocrmypdf_pages or text_pages
-        return _build_result(fallback_pages, page_count, needs_ocr=True, source_type=source_type, warnings=warnings)
+        return _build_result(
+            fallback_pages,
+            page_count,
+            needs_ocr=True,
+            source_type=source_type,
+            engine="fallback",
+            warnings=warnings,
+        )
 
     if suffix in IMAGE_SUFFIXES:
         source_type = "image"
@@ -187,11 +217,32 @@ def ocr_from_path(file_path: Path) -> OcrResult:
             warnings.append(error)
         page_text = text or ""
         needs_ocr = len(page_text.strip()) < 30
-        return _build_result([page_text], 1, needs_ocr=needs_ocr, source_type=source_type, warnings=warnings)
+        return _build_result(
+            [page_text],
+            1,
+            needs_ocr=needs_ocr,
+            source_type=source_type,
+            engine="tesseract",
+            warnings=warnings,
+        )
 
     if suffix == ".txt":
         source_type = "text"
         text = file_path.read_text(encoding="utf-8", errors="ignore")
-        return _build_result([text], 1, needs_ocr=False, source_type=source_type, warnings=warnings)
+        return _build_result(
+            [text],
+            1,
+            needs_ocr=False,
+            source_type=source_type,
+            engine="raw-text",
+            warnings=warnings,
+        )
 
-    return _build_result([""], 1, needs_ocr=False, source_type="unknown", warnings=[f"Unsupported extension: {suffix}"])
+    return _build_result(
+        [""],
+        1,
+        needs_ocr=False,
+        source_type="unknown",
+        engine="unsupported",
+        warnings=[f"Unsupported extension: {suffix}"],
+    )

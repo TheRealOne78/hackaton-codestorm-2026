@@ -11,6 +11,7 @@ def test_ocr_from_txt_file(tmp_path: Path) -> None:
 
     assert result.source_type == "text"
     assert result.needs_ocr is False
+    assert result.engine == "raw-text"
     assert "Credite" in result.full_text
     assert len(result.pages) == 1
 
@@ -36,6 +37,7 @@ def test_ocr_pdf_uses_digital_text(monkeypatch, tmp_path: Path) -> None:
 
     assert result.source_type == "pdf"
     assert result.needs_ocr is False
+    assert result.engine == "pdftotext"
     assert len(result.pages) == 2
     assert result.warnings == []
 
@@ -57,5 +59,6 @@ def test_ocr_pdf_falls_back_to_tesseract(monkeypatch, tmp_path: Path) -> None:
 
     assert result.source_type == "pdf"
     assert result.needs_ocr is False
+    assert result.engine == "pdftoppm+tesseract"
     assert "pagina unu" in result.full_text
     assert any("OCRmyPDF not available" in warning for warning in result.warnings)

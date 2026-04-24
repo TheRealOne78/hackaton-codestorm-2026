@@ -62,7 +62,8 @@ pytest -q
 ```bash
 cd apps/api
 make install
-make ocr-batch
+make ocr-verify
 ```
 
 This writes JSONL results to `apps/api/ocr_batch_results.jsonl`.
+Each OCR result includes `engine` (`pdftotext`, `ocrmypdf`, `pdftoppm+tesseract`, etc.) for diagnostics.
