@@ -16,6 +16,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 - `GET /health` healthcheck
 - `POST /ocr` upload file (pdf/image/txt) and extract text
 - `POST /parse` parse text into internal JSON
+- `POST /sanitize` normalize OCR text and extract table dictionaries
 - `POST /parse-structured` parse OCR text + optional tables into `fisa`/`plan` schema
 - `POST /validate` validate parsed JSON
 - `POST /pipeline/run-blockers` upload file and run OCR -> Parse -> Validate
@@ -59,6 +60,8 @@ cd apps/api
 pytest -q
 ```
 
+`make check` also enforces module-level docstrings across `app/`, `scripts/`, and `tests/`.
+
 ## Auto-run OCR on Sample Slices
 
 ```bash
@@ -82,3 +85,4 @@ Each OCR result includes `engine` (`pdftotext`, `ocrmypdf`, `pdftoppm+tesseract`
 
 For one-shot flow:
 - Use `POST /pipeline/run-structured?document_type=plan`
+  - response includes `sanitized.headers` and `sanitized.rows` dictionaries for table-like data.

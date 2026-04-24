@@ -7,6 +7,7 @@ from typing import Any, Literal
 
 from app.schemas.blockers import OcrTable, ParsedDocument
 from app.services.parse_service import parse_ocr_text
+from app.services.sanitizer_service import detect_document_type_sanitized
 
 
 def _norm(text: str) -> str:
@@ -16,16 +17,7 @@ def _norm(text: str) -> str:
 
 def detect_document_type(text: str) -> Literal["fisa", "plan"]:
     """Infer document type from lexical markers."""
-    low = text.lower()
-    if "plan de invatamant" in low or "planul de invatamant" in low:
-        return "plan"
-    if "fișa disciplinei" in low or "fisa disciplinei" in low:
-        return "fisa"
-
-    # fallback heuristics
-    if "nr. discipline" in low and "semestrul" in low:
-        return "plan"
-    return "fisa"
+    return detect_document_type_sanitized(text)
 
 
 def _extract_first(text: str, pattern: str) -> str | None:

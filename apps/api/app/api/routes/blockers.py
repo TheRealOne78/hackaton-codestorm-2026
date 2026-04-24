@@ -10,6 +10,7 @@ from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from app.schemas.blockers import Envelope, ParseRequest, ParseStructuredRequest, ValidateRequest
 from app.services.ocr_service import ocr_from_path
 from app.services.parse_service import parse_ocr_text
+from app.services.sanitizer_service import sanitize_payload
 from app.services.structured_parser_service import parse_structured
 from app.services.validation_service import validate_document
 
@@ -38,12 +39,31 @@ def run_parse(payload: ParseRequest) -> Envelope:
 @router.post("/parse-structured", response_model=Envelope)
 def run_parse_structured(payload: ParseStructuredRequest) -> Envelope:
     """Parse text (and optional table rows) into a structured Plan/Fișa payload."""
-    parsed = parse_structured(
+    sanitized = sanitize_payload(
         text=payload.text,
         tables=payload.tables,
-        document_type=payload.document_type,
+        doc_type=payload.document_type,
     )
-    return Envelope(data=parsed, meta={"endpoint": "/parse-structured", "document_type": payload.document_type})
+    parsed = parse_structured(
+        text=sanitized["clean_text"],
+        tables=payload.tables,
+        document_type=sanitized["document_type"],
+    )
+    return Envelope(
+        data={"sanitized": sanitized, "parsed": parsed},
+        meta={"endpoint": "/parse-structured", "document_type": payload.document_type},
+    )
+
+
+@router.post("/sanitize", response_model=Envelope)
+def run_sanitize(payload: ParseStructuredRequest) -> Envelope:
+    """Sanitize OCR text/tables and return normalized dictionaries."""
+    sanitized = sanitize_payload(
+        text=payload.text,
+        tables=payload.tables,
+        doc_type=payload.document_type,
+    )
+    return Envelope(data=sanitized, meta={"endpoint": "/sanitize", "document_type": payload.document_type})
 
 
 @router.post("/validate", response_model=Envelope)
@@ -93,15 +113,22 @@ async def run_pipeline_structured(
     if not ocr_result.full_text.strip():
         raise HTTPException(status_code=422, detail="OCR produced empty text. Provide a clearer input or OCR engine.")
 
-    parsed = parse_structured(
+    safe_doc_type = document_type if document_type in {"auto", "fisa", "plan"} else "auto"
+    sanitized = sanitize_payload(
         text=ocr_result.full_text,
         tables=ocr_result.tables,
-        document_type=document_type if document_type in {"auto", "fisa", "plan"} else "auto",
+        doc_type=safe_doc_type,  # type: ignore[arg-type]
+    )
+    parsed = parse_structured(
+        text=sanitized["clean_text"],
+        tables=ocr_result.tables,
+        document_type=sanitized["document_type"],
     )
 
     return Envelope(
         data={
             "ocr": ocr_result.model_dump(),
+            "sanitized": sanitized,
             "parsed": parsed,
         },
         meta={"endpoint": "/pipeline/run-structured", "document_type": document_type},

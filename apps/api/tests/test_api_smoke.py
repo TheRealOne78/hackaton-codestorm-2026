@@ -109,8 +109,26 @@ def test_parse_structured_plan_endpoint_smoke() -> None:
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["data"]["doc_type"] == "plan"
-    assert payload["data"]["totals"]["courses_detected"] >= 2
+    assert payload["data"]["parsed"]["doc_type"] == "plan"
+    assert payload["data"]["parsed"]["totals"]["courses_detected"] >= 2
+    assert payload["data"]["sanitized"]["document_type"] == "plan"
+
+
+def test_sanitize_endpoint_smoke() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/sanitize",
+        json={
+            "text": "ANUL II\n1. Algoritmica grafurilor DF IT31-ID E 5\n",
+            "tables": [{"page_number": 1, "rows": [["1.", "Algoritmica grafurilor", "IT31-ID", "E", "5"]]}],
+            "document_type": "plan",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["data"]["document_type"] == "plan"
+    assert "rows" in payload["data"]
 
 
 def test_pipeline_structured_endpoint_with_text_upload() -> None:
@@ -129,3 +147,4 @@ def test_pipeline_structured_endpoint_with_text_upload() -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["data"]["parsed"]["doc_type"] == "plan"
+    assert payload["data"]["sanitized"]["document_type"] == "plan"
