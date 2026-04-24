@@ -1,0 +1,191 @@
+{
+  "generated_by": "scripts/slice_sample_pdfs.py",
+  "segments": [
+    {
+      "source": "samples/fisa_disciplina.pdf",
+      "output": "samples/sliced/fisa_disciplina/fisa_entry_001_p001-007.pdf",
+      "start_page": 1,
+      "end_page": 7
+    },
+    {
+      "source": "samples/fisa_disciplina.pdf",
+      "output": "samples/sliced/fisa_disciplina/fisa_entry_002_p008-012.pdf",
+      "start_page": 8,
+      "end_page": 12
+    },
+    {
+      "source": "samples/fisa_disciplina.pdf",
+      "output": "samples/sliced/fisa_disciplina/fisa_entry_003_p013-018.pdf",
+      "start_page": 13,
+      "end_page": 18
+    },
+    {
+      "source": "samples/fisa_disciplina.pdf",
+      "output": "samples/sliced/fisa_disciplina/fisa_entry_004_p019-020.pdf",
+      "start_page": 19,
+      "end_page": 20
+    },
+    {
+      "source": "samples/fisa_disciplina.pdf",
+      "output": "samples/sliced/fisa_disciplina/fisa_entry_005_p021-024.pdf",
+      "start_page": 21,
+      "end_page": 24
+    },
+    {
+      "source": "samples/fisa_disciplina.pdf",
+      "output": "samples/sliced/fisa_disciplina/fisa_entry_006_p025-028.pdf",
+      "start_page": 25,
+      "end_page": 28
+    },
+    {
+      "source": "samples/fisa_disciplina.pdf",
+      "output": "samples/sliced/fisa_disciplina/fisa_entry_007_p029-031.pdf",
+      "start_page": 29,
+      "end_page": 31
+    },
+    {
+      "source": "samples/fisa_disciplina.pdf",
+      "output": "samples/sliced/fisa_disciplina/fisa_entry_008_p032-033.pdf",
+      "start_page": 32,
+      "end_page": 33
+    },
+    {
+      "source": "samples/fisa_disciplina.pdf",
+      "output": "samples/sliced/fisa_disciplina/fisa_entry_009_p034-037.pdf",
+      "start_page": 34,
+      "end_page": 37
+    },
+    {
+      "source": "samples/fisa_disciplina.pdf",
+      "output": "samples/sliced/fisa_disciplina/fisa_entry_010_p038-042.pdf",
+      "start_page": 38,
+      "end_page": 42
+    },
+    {
+      "source": "samples/fisa_disciplina.pdf",
+      "output": "samples/sliced/fisa_disciplina/fisa_entry_011_p043-047.pdf",
+      "start_page": 43,
+      "end_page": 47
+    },
+    {
+      "source": "samples/fisa_disciplina.pdf",
+      "output": "samples/sliced/fisa_disciplina/fisa_entry_012_p048-050.pdf",
+      "start_page": 48,
+      "end_page": 50
+    },
+    {
+      "source": "samples/fisa_disciplina.pdf",
+      "output": "samples/sliced/fisa_disciplina/fisa_entry_013_p051-052.pdf",
+      "start_page": 51,
+      "end_page": 52
+    },
+    {
+      "source": "samples/fisa_disciplina.pdf",
+      "output": "samples/sliced/fisa_disciplina/fisa_entry_014_p053-055.pdf",
+      "start_page": 53,
+      "end_page": 55
+    },
+    {
+      "source": "samples/fisa_disciplina.pdf",
+      "output": "samples/sliced/fisa_disciplina/fisa_entry_015_p056-057.pdf",
+      "start_page": 56,
+      "end_page": 57
+    },
+    {
+      "source": "samples/fisa_disciplina.pdf",
+      "output": "samples/sliced/fisa_disciplina/fisa_entry_016_p058-062.pdf",
+      "start_page": 58,
+      "end_page": 62
+    },
+    {
+      "source": "samples/fisa_disciplina.pdf",
+      "output": "samples/sliced/fisa_disciplina/fisa_entry_017_p063-067.pdf",
+      "start_page": 63,
+      "end_page": 67
+    },
+    {
+      "source": "samples/fisa_disciplina.pdf",
+      "output": "samples/sliced/fisa_disciplina/fisa_entry_018_p068-071.pdf",
+      "start_page": 68,
+      "end_page": 71
+    },
+    {
+      "source": "samples/fisa_disciplina.pdf",
+      "output": "samples/sliced/fisa_disciplina/fisa_entry_019_p072-075.pdf",
+      "start_page": 72,
+      "end_page": 75
+    },
+    {
+      "source": "samples/fisa_disciplina.pdf",
+      "output": "samples/sliced/fisa_disciplina/fisa_entry_020_p076-077.pdf",
+      "start_page": 76,
+      "end_page": 77
+    },
+    {
+      "source": "samples/fisa_disciplina.pdf",
+      "output": "samples/sliced/fisa_disciplina/fisa_entry_021_p078-083.pdf",
+      "start_page": 78,
+      "end_page": 83
+    },
+    {
+      "source": "samples/fisa_disciplina.pdf",
+      "output": "samples/sliced/fisa_disciplina/fisa_entry_022_p084-087.pdf",
+      "start_page": 84,
+      "end_page": 87
+    },
+    {
+      "source": "samples/fisa_disciplina.pdf",
+      "output": "samples/sliced/fisa_disciplina/fisa_entry_023_p088-092.pdf",
+      "start_page": 88,
+      "end_page": 92
+    },
+    {
+      "source": "samples/fisa_disciplina.pdf",
+      "output": "samples/sliced/fisa_disciplina/fisa_entry_024_p093-099.pdf",
+      "start_page": 93,
+      "end_page": 99
+    },
+    {
+      "source": "samples/plan_invatamant.pdf",
+      "output": "samples/sliced/plan_invatamant/plan_page_001.pdf",
+      "start_page": 1,
+      "end_page": 1
+    },
+    {
+      "source": "samples/plan_invatamant.pdf",
+      "output": "samples/sliced/plan_invatamant/plan_page_002.pdf",
+      "start_page": 2,
+      "end_page": 2
+    },
+    {
+      "source": "samples/plan_invatamant.pdf",
+      "output": "samples/sliced/plan_invatamant/plan_page_003.pdf",
+      "start_page": 3,
+      "end_page": 3
+    },
+    {
+      "source": "samples/plan_invatamant.pdf",
+      "output": "samples/sliced/plan_invatamant/plan_page_004.pdf",
+      "start_page": 4,
+      "end_page": 4
+    },
+    {
+      "source": "samples/plan_invatamant.pdf",
+      "output": "samples/sliced/plan_invatamant/plan_page_005.pdf",
+      "start_page": 5,
+      "end_page": 5
+    },
+    {
+      "source": "samples/plan_invatamant.pdf",
+      "output": "samples/sliced/plan_invatamant/plan_page_006.pdf",
+      "start_page": 6,
+      "end_page": 6
+    },
+    {
+      "source": "samples/plan_invatamant.pdf",
+      "output": "samples/sliced/plan_invatamant/plan_page_007.pdf",
+      "start_page": 7,
+      "end_page": 7
+    }
+  ]
+}
