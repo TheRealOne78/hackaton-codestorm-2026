@@ -7,7 +7,7 @@ import tempfile
 import os
 from pathlib import Path
 
-from app.schemas.blockers import OcrBlock, OcrPage, OcrResult
+from app.schemas.blockers import OcrBlock, OcrPage, OcrResult, OcrTable
 
 
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}
@@ -46,9 +46,37 @@ def _extract_pdf_text_pages(pdf_path: Path, page_count: int) -> list[str]:
     return pages
 
 
-def _ocr_pdf_with_ocrmypdf(pdf_path: Path) -> tuple[list[str] | None, str | None]:
+def _extract_pdf_layout_pages(pdf_path: Path, page_count: int) -> list[str]:
+    pages: list[str] = []
+    for page in range(1, page_count + 1):
+        output, _ = _safe_run(["pdftotext", "-layout", "-f", str(page), "-l", str(page), str(pdf_path), "-"])
+        pages.append(output or "")
+    return pages
+
+
+def _extract_table_rows_from_layout(layout_text: str) -> list[list[str]]:
+    rows: list[list[str]] = []
+    for raw_line in layout_text.splitlines():
+        line = raw_line.rstrip()
+        if not line.strip():
+            continue
+
+        # Heuristic: treat lines with multiple aligned columns (2+ spaces) as potential table rows.
+        cells = [cell.strip() for cell in re.split(r"\s{2,}", line) if cell.strip()]
+        if len(cells) < 3:
+            continue
+
+        # Keep rows that look tabular (contain at least one numeric token or short code-like cell).
+        looks_tabular = any(re.search(r"\d", cell) for cell in cells) or any(len(cell) <= 5 for cell in cells)
+        if looks_tabular:
+            rows.append(cells)
+
+    return rows
+
+
+def _ocr_pdf_with_ocrmypdf(pdf_path: Path) -> tuple[list[str] | None, list[str] | None, str | None]:
     if shutil.which("ocrmypdf") is None:
-        return None, "OCRmyPDF not available"
+        return None, None, "OCRmyPDF not available"
 
     with tempfile.TemporaryDirectory(prefix="ocr-") as tmp:
         tmpdir = Path(tmp)
@@ -64,10 +92,12 @@ def _ocr_pdf_with_ocrmypdf(pdf_path: Path) -> tuple[list[str] | None, str | None
         ]
         _, error = _safe_run(cmd, timeout=240)
         if error:
-            return None, f"OCRmyPDF failed: {error}"
+            return None, None, f"OCRmyPDF failed: {error}"
 
         text = sidecar.read_text(encoding="utf-8", errors="ignore") if sidecar.exists() else ""
-        return text.split("\f") if text else [""], None
+        page_count = _pdf_page_count(out_pdf) if out_pdf.exists() else 1
+        layout_pages = _extract_pdf_layout_pages(out_pdf, page_count) if out_pdf.exists() else [""]
+        return text.split("\f") if text else [""], layout_pages, None
 
 
 def _ocr_image_with_tesseract(image_path: Path) -> tuple[str | None, str | None]:
@@ -116,6 +146,7 @@ def _ocr_pdf_with_pdftoppm_tesseract(pdf_path: Path, page_count: int) -> tuple[l
 
 def _build_result(
     pages_text: list[str],
+    layout_pages: list[str],
     page_count: int,
     needs_ocr: bool,
     source_type: str,
@@ -139,11 +170,17 @@ def _build_result(
 
     blocks = [OcrBlock(page_number=page.page_number, text=page.preview) for page in pages if page.preview]
 
+    tables: list[OcrTable] = []
+    for i, layout_text in enumerate(layout_pages[:page_count]):
+        table_rows = _extract_table_rows_from_layout(layout_text)
+        if table_rows:
+            tables.append(OcrTable(page_number=i + 1, rows=table_rows))
+
     return OcrResult(
         full_text="\f".join(normalized_pages),
         pages=pages,
         blocks=blocks,
-        tables=[],
+        tables=tables,
         needs_ocr=needs_ocr,
         engine=engine,
         source_type=source_type,  # type: ignore[arg-type]
@@ -159,11 +196,13 @@ def ocr_from_path(file_path: Path) -> OcrResult:
         source_type = "pdf"
         page_count = _pdf_page_count(file_path)
         text_pages = _extract_pdf_text_pages(file_path, page_count)
+        layout_pages = _extract_pdf_layout_pages(file_path, page_count)
         extracted_len = sum(len(p.strip()) for p in text_pages)
 
         if extracted_len >= 200:
             return _build_result(
                 text_pages,
+                layout_pages,
                 page_count,
                 needs_ocr=False,
                 source_type=source_type,
@@ -171,13 +210,14 @@ def ocr_from_path(file_path: Path) -> OcrResult:
                 warnings=warnings,
             )
 
-        ocrmypdf_pages, ocrmypdf_error = _ocr_pdf_with_ocrmypdf(file_path)
+        ocrmypdf_pages, ocrmypdf_layout_pages, ocrmypdf_error = _ocr_pdf_with_ocrmypdf(file_path)
         if ocrmypdf_error:
             warnings.append(ocrmypdf_error)
 
         if ocrmypdf_pages and sum(len(p.strip()) for p in ocrmypdf_pages) >= 50:
             return _build_result(
                 ocrmypdf_pages,
+                ocrmypdf_layout_pages or layout_pages,
                 page_count,
                 needs_ocr=False,
                 source_type=source_type,
@@ -192,6 +232,7 @@ def ocr_from_path(file_path: Path) -> OcrResult:
         if tesseract_pages and sum(len(p.strip()) for p in tesseract_pages) >= 30:
             return _build_result(
                 tesseract_pages,
+                layout_pages,
                 page_count,
                 needs_ocr=False,
                 source_type=source_type,
@@ -203,6 +244,7 @@ def ocr_from_path(file_path: Path) -> OcrResult:
         fallback_pages = tesseract_pages or ocrmypdf_pages or text_pages
         return _build_result(
             fallback_pages,
+            layout_pages,
             page_count,
             needs_ocr=True,
             source_type=source_type,
@@ -219,6 +261,7 @@ def ocr_from_path(file_path: Path) -> OcrResult:
         needs_ocr = len(page_text.strip()) < 30
         return _build_result(
             [page_text],
+            [page_text],
             1,
             needs_ocr=needs_ocr,
             source_type=source_type,
@@ -231,6 +274,7 @@ def ocr_from_path(file_path: Path) -> OcrResult:
         text = file_path.read_text(encoding="utf-8", errors="ignore")
         return _build_result(
             [text],
+            [text],
             1,
             needs_ocr=False,
             source_type=source_type,
@@ -239,6 +283,7 @@ def ocr_from_path(file_path: Path) -> OcrResult:
         )
 
     return _build_result(
+        [""],
         [""],
         1,
         needs_ocr=False,
