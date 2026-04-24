@@ -3,6 +3,7 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.schemas.blockers import SpellcheckResult
 
 
 def test_parse_endpoint_smoke() -> None:
@@ -148,3 +149,34 @@ def test_pipeline_structured_endpoint_with_text_upload() -> None:
     payload = response.json()
     assert payload["data"]["parsed"]["doc_type"] == "plan"
     assert payload["data"]["sanitized"]["document_type"] == "plan"
+    assert "spellcheck" in payload["data"]
+
+
+def test_spellcheck_endpoint_smoke(monkeypatch) -> None:
+    client = TestClient(app)
+
+    def fake_spellcheck_text_ro(
+        text: str,
+        language: str = "ro-RO",
+        max_issues: int = 200,
+        include_corrected_text: bool = True,
+    ) -> SpellcheckResult:
+        return SpellcheckResult(
+            available=True,
+            language=language,
+            issues=[],
+            duplicate_tokens=[],
+            corrected_text=text if include_corrected_text else None,
+            warnings=[],
+        )
+
+    monkeypatch.setattr("app.api.routes.blockers.spellcheck_text_ro", fake_spellcheck_text_ro)
+    response = client.post(
+        "/spellcheck",
+        json={"text": "Acesta este un text.", "language": "ro-RO", "max_issues": 20, "include_corrected_text": True},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["data"]["available"] is True
+    assert payload["data"]["language"] == "ro-RO"

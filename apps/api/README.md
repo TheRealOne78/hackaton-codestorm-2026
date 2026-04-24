@@ -18,6 +18,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 - `POST /parse` parse text into internal JSON
 - `POST /sanitize` normalize OCR text and extract table dictionaries
 - `POST /parse-structured` parse OCR text + optional tables into `fisa`/`plan` schema
+- `POST /spellcheck` Romanian spell-check with suggestions
 - `POST /validate` validate parsed JSON
 - `POST /pipeline/run-blockers` upload file and run OCR -> Parse -> Validate
 - `POST /pipeline/run-structured` upload file and run OCR -> Structured Parse
@@ -52,6 +53,17 @@ Optional env var for OCR language selection:
 ```bash
 export OCR_TESSERACT_LANG="ron+eng"
 ```
+
+## Romanian Spell-check (Library-Based)
+
+This project uses the Python library `language_tool_python` for spell checking (`ro-RO`).
+
+- Endpoint: `POST /spellcheck`
+- Integrated in: `POST /pipeline/run-structured` (returns `data.spellcheck`)
+
+Note:
+- LanguageTool may require a local Java runtime when starting its local server.
+- If unavailable, the API still responds with `available=false` and diagnostic warnings.
 
 ## Tests
 

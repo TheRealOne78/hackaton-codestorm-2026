@@ -106,3 +106,35 @@ class ValidateRequest(BaseModel):
 
     document: ParsedDocument
     max_individual_weight: float = 60.0
+
+
+class SpellcheckRequest(BaseModel):
+    """Request body for spell-check endpoint."""
+
+    text: str
+    language: str = "ro-RO"
+    max_issues: int = 200
+    include_corrected_text: bool = True
+
+
+class SpellIssue(BaseModel):
+    """Single spelling issue with suggestions and source offset."""
+
+    token: str
+    offset: int
+    length: int
+    message: str
+    replacements: list[str] = Field(default_factory=list)
+    rule_id: str
+    category: str | None = None
+
+
+class SpellcheckResult(BaseModel):
+    """Romanian spell-check output."""
+
+    available: bool
+    language: str
+    issues: list[SpellIssue] = Field(default_factory=list)
+    duplicate_tokens: list[dict[str, Any]] = Field(default_factory=list)
+    corrected_text: str | None = None
+    warnings: list[str] = Field(default_factory=list)

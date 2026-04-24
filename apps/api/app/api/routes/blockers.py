@@ -7,10 +7,11 @@ from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 
-from app.schemas.blockers import Envelope, ParseRequest, ParseStructuredRequest, ValidateRequest
+from app.schemas.blockers import Envelope, ParseRequest, ParseStructuredRequest, SpellcheckRequest, ValidateRequest
 from app.services.ocr_service import ocr_from_path
 from app.services.parse_service import parse_ocr_text
 from app.services.sanitizer_service import sanitize_payload
+from app.services.spellcheck_service import spellcheck_text_ro
 from app.services.structured_parser_service import parse_structured
 from app.services.validation_service import validate_document
 
@@ -73,6 +74,18 @@ def run_validate(payload: ValidateRequest) -> Envelope:
     return Envelope(data=result.model_dump(), meta={"endpoint": "/validate"})
 
 
+@router.post("/spellcheck", response_model=Envelope)
+def run_spellcheck(payload: SpellcheckRequest) -> Envelope:
+    """Run Romanian spell-check over a text payload."""
+    result = spellcheck_text_ro(
+        text=payload.text,
+        language=payload.language,
+        max_issues=payload.max_issues,
+        include_corrected_text=payload.include_corrected_text,
+    )
+    return Envelope(data=result.model_dump(), meta={"endpoint": "/spellcheck", "language": payload.language})
+
+
 @router.post("/pipeline/run-blockers", response_model=Envelope)
 async def run_pipeline(file: UploadFile = File(...)) -> Envelope:
     """Execute OCR -> parse -> validate in a single request."""
@@ -102,6 +115,7 @@ async def run_pipeline(file: UploadFile = File(...)) -> Envelope:
 async def run_pipeline_structured(
     file: UploadFile = File(...),
     document_type: str = Query("auto"),
+    spellcheck: bool = Query(True),
 ) -> Envelope:
     """Execute OCR -> structured parser in a single request."""
     suffix = Path(file.filename or "input.bin").suffix or ".bin"
@@ -124,12 +138,18 @@ async def run_pipeline_structured(
         tables=ocr_result.tables,
         document_type=sanitized["document_type"],
     )
+    spell = (
+        spellcheck_text_ro(text=sanitized["clean_text"], language="ro-RO", max_issues=120, include_corrected_text=False)
+        if spellcheck
+        else None
+    )
 
     return Envelope(
         data={
             "ocr": ocr_result.model_dump(),
             "sanitized": sanitized,
             "parsed": parsed,
+            "spellcheck": spell.model_dump() if spell is not None else None,
         },
-        meta={"endpoint": "/pipeline/run-structured", "document_type": document_type},
+        meta={"endpoint": "/pipeline/run-structured", "document_type": document_type, "spellcheck": spellcheck},
     )
