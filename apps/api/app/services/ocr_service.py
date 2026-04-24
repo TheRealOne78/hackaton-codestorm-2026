@@ -5,6 +5,8 @@ import shutil
 import subprocess
 import tempfile
 import os
+import unicodedata
+from collections import Counter
 from pathlib import Path
 
 from app.schemas.blockers import OcrBlock, OcrPage, OcrResult, OcrTable
@@ -72,6 +74,113 @@ def _extract_table_rows_from_layout(layout_text: str) -> list[list[str]]:
             rows.append(cells)
 
     return rows
+
+
+def _sanitize_text_line(line: str) -> str:
+    value = unicodedata.normalize("NFKC", line)
+    value = (
+        value.replace("ﬁ", "fi")
+        .replace("ﬂ", "fl")
+        .replace("’", "'")
+        .replace("`", "'")
+        .replace("“", '"')
+        .replace("”", '"')
+        .replace("—", "-")
+    )
+    value = value.replace("|", " | ")
+    value = re.sub(r"\s+", " ", value).strip()
+    value = re.sub(r"\s+\|\s+", " | ", value)
+    return value
+
+
+def _looks_like_noise_line(line: str) -> bool:
+    if not line:
+        return True
+    # Mostly symbols or short OCR garbage
+    if len(line) <= 2:
+        return True
+    alnum = sum(ch.isalnum() for ch in line)
+    if alnum == 0:
+        return True
+    ratio = alnum / max(1, len(line))
+    return ratio < 0.35
+
+
+def _detect_repeated_headers_footers(pages_text: list[str]) -> set[str]:
+    if len(pages_text) < 2:
+        return set()
+
+    normalized_lines: list[str] = []
+    for page_text in pages_text:
+        lines = [line.strip() for line in page_text.splitlines()]
+        # Header/footer candidates: top/bottom few non-empty lines
+        top = [ln for ln in lines[:6] if ln]
+        bottom = [ln for ln in lines[-6:] if ln]
+        # Avoid double counting the same line from short pages.
+        candidates = list(dict.fromkeys([*top, *bottom]))
+        normalized_lines.extend(_sanitize_text_line(ln).lower() for ln in candidates)
+
+    counts = Counter(normalized_lines)
+    threshold = max(2, len(pages_text) // 2)
+    repeated = {
+        line
+        for line, count in counts.items()
+        if count >= threshold and len(line) > 6 and not _looks_like_noise_line(line)
+    }
+    return repeated
+
+
+def _sanitize_pages_text(pages_text: list[str]) -> list[str]:
+    repeated_noise = _detect_repeated_headers_footers(pages_text)
+    sanitized_pages: list[str] = []
+
+    for page_text in pages_text:
+        clean_lines: list[str] = []
+        for raw in page_text.splitlines():
+            line = _sanitize_text_line(raw)
+            if not line:
+                continue
+            if line.lower() in repeated_noise:
+                continue
+            if _looks_like_noise_line(line):
+                continue
+            clean_lines.append(line)
+
+        # Collapse excessive blank lines and keep readable structure
+        joined = "\n".join(clean_lines)
+        joined = re.sub(r"\n{3,}", "\n\n", joined).strip()
+        sanitized_pages.append(joined)
+
+    return sanitized_pages
+
+
+def _sanitize_table_rows(rows: list[list[str]]) -> list[list[str]]:
+    sanitized: list[list[str]] = []
+    seen: set[tuple[str, ...]] = set()
+
+    for row in rows:
+        clean_cells = []
+        for cell in row:
+            value = _sanitize_text_line(cell)
+            value = re.sub(r"^[\W_]+|[\W_]+$", "", value)
+            if value:
+                clean_cells.append(value)
+
+        if len(clean_cells) < 2:
+            continue
+
+        # Drop very noisy rows
+        row_text = " ".join(clean_cells)
+        if _looks_like_noise_line(row_text):
+            continue
+
+        key = tuple(clean_cells)
+        if key in seen:
+            continue
+        seen.add(key)
+        sanitized.append(clean_cells)
+
+    return sanitized
 
 
 def _ocr_pdf_with_ocrmypdf(pdf_path: Path) -> tuple[list[str] | None, list[str] | None, str | None]:
@@ -153,7 +262,7 @@ def _build_result(
     engine: str,
     warnings: list[str],
 ) -> OcrResult:
-    normalized_pages = pages_text[:]
+    normalized_pages = _sanitize_pages_text(pages_text)
     if len(normalized_pages) < page_count:
         normalized_pages.extend([""] * (page_count - len(normalized_pages)))
 
@@ -172,7 +281,7 @@ def _build_result(
 
     tables: list[OcrTable] = []
     for i, layout_text in enumerate(layout_pages[:page_count]):
-        table_rows = _extract_table_rows_from_layout(layout_text)
+        table_rows = _sanitize_table_rows(_extract_table_rows_from_layout(layout_text))
         if table_rows:
             tables.append(OcrTable(page_number=i + 1, rows=table_rows))
 
