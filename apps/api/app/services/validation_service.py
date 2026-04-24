@@ -1,9 +1,12 @@
+"""Validation service for parsed Fișa documents."""
+
 from __future__ import annotations
 
 from app.schemas.blockers import ParsedDocument, ValidationIssue, ValidationResult
 
 
 def _issue(code: str, path: str, message: str, severity: str, suggested_fix: str) -> ValidationIssue:
+    """Create a typed validation issue instance."""
     return ValidationIssue(
         code=code,
         path=path,
@@ -14,6 +17,7 @@ def _issue(code: str, path: str, message: str, severity: str, suggested_fix: str
 
 
 def validate_document(document: ParsedDocument, max_individual_weight: float = 60.0) -> ValidationResult:
+    """Validate mandatory fields and evaluation constraints for a parsed document."""
     errors: list[ValidationIssue] = []
     warnings: list[ValidationIssue] = []
 

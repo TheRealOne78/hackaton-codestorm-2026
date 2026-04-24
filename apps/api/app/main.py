@@ -1,3 +1,5 @@
+"""FastAPI application entrypoint for OCR, parsing, and validation workflows."""
+
 from fastapi import FastAPI
 
 from app.api.routes.blockers import router as blockers_router
@@ -17,6 +19,7 @@ app.include_router(blockers_router)
 
 @app.get("/")
 def root() -> dict[str, str]:
+    """Return a minimal service status payload."""
     return {
         "service": "acadcheck-api",
         "status": "ok",

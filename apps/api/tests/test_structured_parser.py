@@ -1,3 +1,5 @@
+"""Unit tests for plan/fisa structured parser routing and output shape."""
+
 from app.schemas.blockers import OcrTable
 from app.services.structured_parser_service import detect_document_type, parse_structured
 

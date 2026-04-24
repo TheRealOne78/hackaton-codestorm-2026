@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Batch OCR runner for PDF/image/text fixtures with JSONL output."""
+
 from __future__ import annotations
 
 import argparse
@@ -16,11 +18,13 @@ from app.services.ocr_service import ocr_from_path
 
 
 def discover_files(input_dir: Path) -> list[Path]:
+    """Discover OCR-compatible files recursively under the input directory."""
     exts = {".pdf", ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp", ".txt"}
     return sorted(p for p in input_dir.rglob("*") if p.is_file() and p.suffix.lower() in exts)
 
 
 def main() -> None:
+    """Execute OCR over discovered files and persist per-file JSONL summaries."""
     parser = argparse.ArgumentParser(description="Run OCR over a folder and save JSONL results")
     parser.add_argument(
         "--input-dir",

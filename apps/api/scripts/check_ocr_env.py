@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Check OCR runtime dependencies and required language packs."""
+
 from __future__ import annotations
 
 import shutil
@@ -7,10 +9,12 @@ import sys
 
 
 def has_cmd(name: str) -> bool:
+    """Return True when a command is available on PATH."""
     return shutil.which(name) is not None
 
 
 def tesseract_langs() -> set[str]:
+    """Return installed tesseract language identifiers."""
     if not has_cmd("tesseract"):
         return set()
     result = subprocess.run(["tesseract", "--list-langs"], capture_output=True, text=True, check=False)
@@ -23,6 +27,7 @@ def tesseract_langs() -> set[str]:
 
 
 def main() -> None:
+    """Run OCR environment checks and exit non-zero when critical deps are missing."""
     required = ["pdftotext", "pdfinfo", "pdftoppm", "tesseract", "qpdf", "ghostscript"]
     optional = ["ocrmypdf"]
 

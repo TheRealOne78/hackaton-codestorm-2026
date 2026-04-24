@@ -1,0 +1,1 @@
+"""AcadCheck API application package."""

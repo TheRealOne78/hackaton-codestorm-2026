@@ -1,3 +1,5 @@
+"""OCR service with multi-engine fallback and text/table sanitization."""
+
 from __future__ import annotations
 
 import re
@@ -16,11 +18,13 @@ IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}
 
 
 def _run(cmd: list[str], timeout: int = 90) -> str:
+    """Run a command and return stdout, raising on failure."""
     completed = subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=timeout)
     return completed.stdout
 
 
 def _safe_run(cmd: list[str], timeout: int = 90) -> tuple[str | None, str | None]:
+    """Run a command and return either output or an error message."""
     try:
         return _run(cmd, timeout=timeout), None
     except FileNotFoundError:
@@ -33,6 +37,7 @@ def _safe_run(cmd: list[str], timeout: int = 90) -> tuple[str | None, str | None
 
 
 def _pdf_page_count(pdf_path: Path) -> int:
+    """Read PDF page count using `pdfinfo`."""
     output, _ = _safe_run(["pdfinfo", str(pdf_path)])
     if not output:
         return 1
@@ -41,6 +46,7 @@ def _pdf_page_count(pdf_path: Path) -> int:
 
 
 def _extract_pdf_text_pages(pdf_path: Path, page_count: int) -> list[str]:
+    """Extract plain text page-by-page from a PDF."""
     pages: list[str] = []
     for page in range(1, page_count + 1):
         output, _ = _safe_run(["pdftotext", "-f", str(page), "-l", str(page), str(pdf_path), "-"])
@@ -49,6 +55,7 @@ def _extract_pdf_text_pages(pdf_path: Path, page_count: int) -> list[str]:
 
 
 def _extract_pdf_layout_pages(pdf_path: Path, page_count: int) -> list[str]:
+    """Extract layout-preserving text page-by-page from a PDF."""
     pages: list[str] = []
     for page in range(1, page_count + 1):
         output, _ = _safe_run(["pdftotext", "-layout", "-f", str(page), "-l", str(page), str(pdf_path), "-"])
@@ -57,6 +64,7 @@ def _extract_pdf_layout_pages(pdf_path: Path, page_count: int) -> list[str]:
 
 
 def _extract_table_rows_from_layout(layout_text: str) -> list[list[str]]:
+    """Heuristically detect table-like rows from layout text."""
     rows: list[list[str]] = []
     for raw_line in layout_text.splitlines():
         line = raw_line.rstrip()
@@ -77,6 +85,7 @@ def _extract_table_rows_from_layout(layout_text: str) -> list[list[str]]:
 
 
 def _sanitize_text_line(line: str) -> str:
+    """Normalize unicode and whitespace for a single line."""
     value = unicodedata.normalize("NFKC", line)
     value = (
         value.replace("ﬁ", "fi")
@@ -94,6 +103,7 @@ def _sanitize_text_line(line: str) -> str:
 
 
 def _looks_like_noise_line(line: str) -> bool:
+    """Return True when a line appears to be OCR noise."""
     if not line:
         return True
     # Mostly symbols or short OCR garbage
@@ -107,6 +117,7 @@ def _looks_like_noise_line(line: str) -> bool:
 
 
 def _detect_repeated_headers_footers(pages_text: list[str]) -> set[str]:
+    """Detect recurring header/footer lines across pages."""
     if len(pages_text) < 2:
         return set()
 
@@ -131,6 +142,7 @@ def _detect_repeated_headers_footers(pages_text: list[str]) -> set[str]:
 
 
 def _sanitize_pages_text(pages_text: list[str]) -> list[str]:
+    """Clean OCR page text and remove repeated noise lines."""
     repeated_noise = _detect_repeated_headers_footers(pages_text)
     sanitized_pages: list[str] = []
 
@@ -155,6 +167,7 @@ def _sanitize_pages_text(pages_text: list[str]) -> list[str]:
 
 
 def _sanitize_table_rows(rows: list[list[str]]) -> list[list[str]]:
+    """Clean and deduplicate heuristic table rows."""
     sanitized: list[list[str]] = []
     seen: set[tuple[str, ...]] = set()
 
@@ -184,6 +197,7 @@ def _sanitize_table_rows(rows: list[list[str]]) -> list[list[str]]:
 
 
 def _ocr_pdf_with_ocrmypdf(pdf_path: Path) -> tuple[list[str] | None, list[str] | None, str | None]:
+    """Run OCRmyPDF and return sidecar text pages plus layout pages."""
     if shutil.which("ocrmypdf") is None:
         return None, None, "OCRmyPDF not available"
 
@@ -210,6 +224,7 @@ def _ocr_pdf_with_ocrmypdf(pdf_path: Path) -> tuple[list[str] | None, list[str] 
 
 
 def _ocr_image_with_tesseract(image_path: Path) -> tuple[str | None, str | None]:
+    """Run tesseract OCR for a single image."""
     if shutil.which("tesseract") is None:
         return None, "tesseract not available"
 
@@ -219,6 +234,7 @@ def _ocr_image_with_tesseract(image_path: Path) -> tuple[str | None, str | None]
 
 
 def _ocr_pdf_with_pdftoppm_tesseract(pdf_path: Path, page_count: int) -> tuple[list[str] | None, str | None]:
+    """Render PDF pages to images and OCR each page with tesseract."""
     if shutil.which("pdftoppm") is None:
         return None, "pdftoppm not available"
     if shutil.which("tesseract") is None:
@@ -262,6 +278,7 @@ def _build_result(
     engine: str,
     warnings: list[str],
 ) -> OcrResult:
+    """Assemble the final OCR result model from intermediate artifacts."""
     normalized_pages = _sanitize_pages_text(pages_text)
     if len(normalized_pages) < page_count:
         normalized_pages.extend([""] * (page_count - len(normalized_pages)))
@@ -298,6 +315,7 @@ def _build_result(
 
 
 def ocr_from_path(file_path: Path) -> OcrResult:
+    """Run OCR for a file path using the best available extraction chain."""
     suffix = file_path.suffix.lower()
     warnings: list[str] = []
 

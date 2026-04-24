@@ -1,3 +1,5 @@
+"""Deterministic parser for baseline Fișa fields from plain text."""
+
 from __future__ import annotations
 
 import re
@@ -6,6 +8,7 @@ from app.schemas.blockers import EvaluationItem, ParsedDocument
 
 
 def _match_block(text: str, patterns: list[str]) -> str | None:
+    """Return the first captured block for the provided regex patterns."""
     for pattern in patterns:
         m = re.search(pattern, text, flags=re.IGNORECASE | re.DOTALL)
         if m:
@@ -16,11 +19,13 @@ def _match_block(text: str, patterns: list[str]) -> str | None:
 
 
 def _extract_credits(text: str) -> int | None:
+    """Extract credits value from text when present."""
     m = re.search(r"credite?\s*[:\-]?\s*(\d{1,2})", text, flags=re.IGNORECASE)
     return int(m.group(1)) if m else None
 
 
 def _extract_bibliography(text: str) -> list[str] | None:
+    """Extract bibliography entries from likely bibliography section."""
     section = _match_block(
         text,
         [
@@ -37,12 +42,14 @@ def _extract_bibliography(text: str) -> list[str] | None:
 
 
 def _extract_competencies(text: str) -> list[str] | None:
+    """Extract competency identifiers (CP/CT) from text."""
     matches = re.findall(r"\b(CP\s*\d+|CT\s*\d+)\b[^\n]*", text, flags=re.IGNORECASE)
     cleaned = [m.upper().replace(" ", "") for m in matches]
     return sorted(set(cleaned)) or None
 
 
 def _extract_evaluation(text: str) -> list[EvaluationItem] | None:
+    """Extract evaluation labels and percentage weights."""
     items: list[EvaluationItem] = []
     for line in text.splitlines():
         if "%" not in line:
@@ -59,6 +66,7 @@ def _extract_evaluation(text: str) -> list[EvaluationItem] | None:
 
 
 def parse_ocr_text(text: str) -> ParsedDocument:
+    """Parse raw OCR text into the baseline ParsedDocument schema."""
     normalized = text.replace("\r\n", "\n")
 
     title = _match_block(

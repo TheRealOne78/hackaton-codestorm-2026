@@ -1,3 +1,5 @@
+"""Unit tests for OCR service fallback and extraction behavior."""
+
 from pathlib import Path
 
 from app.services import ocr_service

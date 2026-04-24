@@ -1,3 +1,5 @@
+"""HTTP smoke tests for OCR, parse, validate, and pipeline endpoints."""
+
 from fastapi.testclient import TestClient
 
 from app.main import app

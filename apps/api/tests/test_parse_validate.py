@@ -1,3 +1,5 @@
+"""Unit tests for deterministic parsing and validation rules."""
+
 from app.services.parse_service import parse_ocr_text
 from app.services.validation_service import validate_document
 

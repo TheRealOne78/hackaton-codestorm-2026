@@ -1,3 +1,5 @@
+"""Structured parser for Plan de Învățământ and Fișa Disciplinei payloads."""
+
 from __future__ import annotations
 
 import re
@@ -8,10 +10,12 @@ from app.services.parse_service import parse_ocr_text
 
 
 def _norm(text: str) -> str:
+    """Normalize whitespace for stable downstream parsing."""
     return re.sub(r"\s+", " ", text).strip()
 
 
 def detect_document_type(text: str) -> Literal["fisa", "plan"]:
+    """Infer document type from lexical markers."""
     low = text.lower()
     if "plan de invatamant" in low or "planul de invatamant" in low:
         return "plan"
@@ -25,6 +29,7 @@ def detect_document_type(text: str) -> Literal["fisa", "plan"]:
 
 
 def _extract_first(text: str, pattern: str) -> str | None:
+    """Return first regex capture normalized as a single-line value."""
     m = re.search(pattern, text, flags=re.IGNORECASE)
     if not m:
         return None
@@ -32,6 +37,7 @@ def _extract_first(text: str, pattern: str) -> str | None:
 
 
 def _extract_int(text: str, pattern: str) -> int | None:
+    """Return first integer capture for a pattern."""
     m = re.search(pattern, text, flags=re.IGNORECASE)
     if not m:
         return None
@@ -42,6 +48,7 @@ def _extract_int(text: str, pattern: str) -> int | None:
 
 
 def _is_header_or_total_row(row: list[str]) -> bool:
+    """Detect non-data rows in parsed plan tables."""
     line = _norm(" ".join(row)).lower()
     header_tokens = [
         "discipline obligatorii",
@@ -56,6 +63,7 @@ def _is_header_or_total_row(row: list[str]) -> bool:
 
 
 def _extract_course_name(row: list[str]) -> str | None:
+    """Extract best-effort course title from a noisy table row."""
     if not row:
         return None
 
@@ -92,6 +100,7 @@ def _extract_course_name(row: list[str]) -> str | None:
 
 
 def _extract_course_code(row: list[str]) -> str | None:
+    """Extract course code from a row when present."""
     line = _norm(" ".join(row))
     m = re.search(r"\b([A-Z]{1,4}\d{2,3}\s*-?\s*ID|[A-Z]{1,4}\d{2,3}-[A-Z]{1,3})\b", line)
     if not m:
@@ -100,6 +109,7 @@ def _extract_course_code(row: list[str]) -> str | None:
 
 
 def _extract_verification_form(row: list[str]) -> str | None:
+    """Extract verification form token (E/C/V/AR/COL/PR)."""
     line = _norm(" ".join(row))
     m = re.search(r"\b(E|C|V|AR|COL|PR)\b", line, flags=re.IGNORECASE)
     if not m:
@@ -108,12 +118,14 @@ def _extract_verification_form(row: list[str]) -> str | None:
 
 
 def _extract_credits_guess(row: list[str]) -> int | None:
+    """Infer credits from small numeric tokens in a row."""
     nums = [int(x) for x in re.findall(r"\b\d{1,3}\b", " ".join(row))]
     small = [n for n in nums if 1 <= n <= 10]
     return small[-1] if small else None
 
 
 def _extract_year_context(line: str) -> int | None:
+    """Extract year marker (roman or arabic) from a text line."""
     low = line.lower()
     roman_map = {"i": 1, "ii": 2, "iii": 3, "iv": 4}
     m = re.search(r"anul\s+([ivxl]+|\d+)", low)
@@ -126,6 +138,7 @@ def _extract_year_context(line: str) -> int | None:
 
 
 def _extract_courses_from_text(text: str, year_guess: int | None) -> list[dict[str, Any]]:
+    """Extract plan courses from numbered text lines as primary source."""
     records: list[dict[str, Any]] = []
     for raw_line in text.splitlines():
         line = _norm(raw_line)
@@ -169,6 +182,7 @@ def _extract_courses_from_text(text: str, year_guess: int | None) -> list[dict[s
 
 
 def parse_plan(text: str, tables: list[OcrTable]) -> dict[str, Any]:
+    """Parse Plan de Învățământ text and OCR table hints into structured data."""
     program_name = _extract_first(text, r"programul\s+de\s+studii[^:\n]*:\s*([^\n]+)")
     faculty = _extract_first(text, r"facultatea\s*:\s*([^\n]+)")
     domain_fundamental = _extract_first(text, r"domeniul\s+fundamental\s*:\s*([^\n]+)")
@@ -257,6 +271,7 @@ def parse_plan(text: str, tables: list[OcrTable]) -> dict[str, Any]:
 
 
 def parse_fisa(text: str) -> dict[str, Any]:
+    """Parse Fișa text via baseline parser and attach structured metadata."""
     # Reuse existing deterministic parser and annotate with document type.
     parsed: ParsedDocument = parse_ocr_text(text)
     data = parsed.model_dump()
@@ -273,6 +288,7 @@ def parse_structured(
     tables: list[OcrTable] | None = None,
     document_type: Literal["auto", "fisa", "plan"] = "auto",
 ) -> dict[str, Any]:
+    """Dispatch to plan/fisa parser with optional automatic type detection."""
     selected = detect_document_type(text) if document_type == "auto" else document_type
     tables = tables or []
 
