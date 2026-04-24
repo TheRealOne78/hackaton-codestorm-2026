@@ -43,6 +43,12 @@ class ParseRequest(BaseModel):
     text: str
 
 
+class ParseStructuredRequest(BaseModel):
+    text: str
+    tables: list[OcrTable] = Field(default_factory=list)
+    document_type: Literal["auto", "fisa", "plan"] = "auto"
+
+
 class EvaluationItem(BaseModel):
     label: str
     weight: float | None = None

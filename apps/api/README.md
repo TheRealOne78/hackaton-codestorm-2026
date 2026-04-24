@@ -16,8 +16,10 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 - `GET /health` healthcheck
 - `POST /ocr` upload file (pdf/image/txt) and extract text
 - `POST /parse` parse text into internal JSON
+- `POST /parse-structured` parse OCR text + optional tables into `fisa`/`plan` schema
 - `POST /validate` validate parsed JSON
 - `POST /pipeline/run-blockers` upload file and run OCR -> Parse -> Validate
+- `POST /pipeline/run-structured` upload file and run OCR -> Structured Parse
 - `GET /docs` OpenAPI docs
 
 ## Notes
@@ -67,3 +69,16 @@ make ocr-verify
 
 This writes JSONL results to `apps/api/ocr_batch_results.jsonl`.
 Each OCR result includes `engine` (`pdftotext`, `ocrmypdf`, `pdftoppm+tesseract`, etc.) for diagnostics.
+
+## Structured Parsing (Plan / Fișa)
+
+1. Run OCR:
+   - `POST /ocr`
+2. Copy `full_text` and `tables` from OCR response.
+3. Call `POST /parse-structured` with:
+   - `document_type: \"plan\"` or `\"fisa\"` (or `\"auto\"`)
+   - `text: <ocr full_text>`
+   - `tables: <ocr tables>`
+
+For one-shot flow:
+- Use `POST /pipeline/run-structured?document_type=plan`

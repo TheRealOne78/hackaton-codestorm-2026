@@ -79,3 +79,51 @@ def test_pipeline_endpoint_with_text_upload() -> None:
     assert "ocr" in payload["data"]
     assert "parsed" in payload["data"]
     assert "validation" in payload["data"]
+
+
+def test_parse_structured_plan_endpoint_smoke() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/parse-structured",
+        json={
+            "text": (
+                "PLAN DE INVATAMANT\n"
+                "Programul de studii universitare de licenta: Informatica\n"
+                "Durata studiilor: 3 ani\n"
+                "ANUL II\n"
+            ),
+            "tables": [
+                {
+                    "page_number": 1,
+                    "rows": [
+                        ["1.", "Algoritmica grafurilor", "IT31-ID", "E", "5"],
+                        ["2.", "Baze de date", "IT34-ID", "E", "5"],
+                    ],
+                }
+            ],
+            "document_type": "plan",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["data"]["doc_type"] == "plan"
+    assert payload["data"]["totals"]["courses_detected"] >= 2
+
+
+def test_pipeline_structured_endpoint_with_text_upload() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/pipeline/run-structured?document_type=plan",
+        files={
+            "file": (
+                "plan.txt",
+                b"PLAN DE INVATAMANT\nProgramul de studii universitare de licenta: Informatica\nANUL I\n1. Algoritmi 5",
+                "text/plain",
+            )
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["data"]["parsed"]["doc_type"] == "plan"
