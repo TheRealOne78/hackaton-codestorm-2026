@@ -34,3 +34,21 @@ def test_sanitize_payload_removes_signature_lines() -> None:
 
     assert "Text util" in result["clean_text"]
     assert any("Conf. dr." in line for line in result["removed_lines"])
+
+
+def test_sanitize_payload_plan_line_parser_filters_noisy_rows() -> None:
+    text = (
+        "ANUL II\n"
+        "Nr, Discipline obligatorii (impuse)\n"
+        "1. | Algoritmica grafurilor DF | ITT31-ID | 28 28 | 69 E | 5\n"
+        "Nr, Discipline optionale (la alegere)\n"
+        "12, - 0S 28 28 | 69 C | 5\n"
+    )
+    result = sanitize_payload(text=text, tables=[], doc_type="plan")
+
+    mandatory = result["rows"]["mandatory"]
+    optional = result["rows"]["optional"]
+
+    assert len(mandatory) == 1
+    assert mandatory[0]["code"] == "IT31-ID"
+    assert optional == []

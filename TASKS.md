@@ -6,7 +6,7 @@
 - [x] Plan revised for Python backend + OpenRouter/Groq provider strategy
 
 ## Working Architecture (target)
-- [ ] `apps/api` Python FastAPI backend (modular monolith)
+- [x] `apps/api` Python FastAPI backend (modular monolith)
 - [ ] `apps/web` React + Vite frontend
 - [ ] `backend/modules` domain modules (ocr, parsing, validation, diff, sync, migration, reporting, ai)
 - [ ] `backend/schemas` shared Pydantic models (internal JSON contracts)
@@ -14,24 +14,24 @@
 - [ ] Docker Compose for local infra (Postgres, Redis, MinIO, OCR sidecar)
 
 ## Priority Order (first obstacles)
-- [ ] **Task 1: OCR**
-- [ ] **Task 2: Parse OCR**
-- [ ] **Task 3: Validation**
-- [ ] **Task 4: API glue for first 3 tasks**
+- [x] **Task 1: OCR**
+- [x] **Task 2: Parse OCR**
+- [x] **Task 3: Validation**
+- [x] **Task 4: API glue for first 3 tasks**
 
 ## Blocker Acceptance Criteria
-- [ ] End-to-end flow works: upload scanned PDF/image -> OCR -> parse -> validate
+- [x] End-to-end flow works: upload scanned PDF/image -> OCR -> parse -> validate
 - [ ] At least 3 golden fixtures (clean PDF, scanned PDF, noisy OCR text)
-- [ ] Validation output is deterministic and stable for UI
-- [ ] Error payload format stable: `code`, `path`, `message`, `severity`, `suggested_fix`
-- [ ] No hardcoded LLM vendor; provider chosen by env
+- [x] Validation output is deterministic and stable for UI
+- [x] Error payload format stable: `code`, `path`, `message`, `severity`, `suggested_fix`
+- [x] No hardcoded LLM vendor; provider chosen by env
 
 ---
 
 ## Task Board (assign to agents)
 
 ### 1) OCR (FIRST)
-- [ ] Implement OCR pipeline for PDF/image input.
+- [x] Implement OCR pipeline for PDF/image input.
 
 Prompt:
 ```text
@@ -59,7 +59,7 @@ Deliverables:
 ```
 
 ### 2) Parse OCR -> Internal Struct (SECOND)
-- [ ] Parse OCR/mock text into canonical JSON.
+- [x] Parse OCR/mock text into canonical JSON.
 
 Prompt:
 ```text
@@ -91,7 +91,7 @@ Deliverables:
 ```
 
 ### 3) Validation (THIRD)
-- [ ] Validate parser JSON and return deterministic issues.
+- [x] Validate parser JSON and return deterministic issues.
 
 Prompt:
 ```text
@@ -122,7 +122,7 @@ Deliverables:
 ```
 
 ### 4) API glue for blocker pipeline
-- [ ] Expose blocker endpoints and one chained endpoint.
+- [x] Expose blocker endpoints and one chained endpoint.
 
 Prompt:
 ```text
@@ -212,17 +212,17 @@ Must evaluate at least:
 ---
 
 ## Suggested Parallel Execution Order
-- [ ] Wave 1 (critical): Tasks 1, 2, 3, 4
+- [x] Wave 1 (critical): Tasks 1, 2, 3, 4
 - [ ] Wave 2: Tasks 5, 6
 - [ ] Wave 3: Tasks 7, 8, 9, 10
 - [ ] Wave 4: Tasks 11, 12, 13, 14
 
 ## Python/Infra Candidate Stack
-- [ ] Backend API: `fastapi`, `uvicorn`, `pydantic`
-- [ ] OCR: `ocrmypdf`, `pytesseract`, `opencv-python` (optional preproc)
+- [x] Backend API: `fastapi`, `uvicorn`, `pydantic`
+- [x] OCR: `ocrmypdf`, `pytesseract`, `opencv-python` (optional preproc)
 - [ ] PDF/DOCX parsing: `pymupdf`, `pdfplumber`, `python-docx`
 - [ ] Matching/diff: `rapidfuzz`, `deepdiff`
-- [ ] Validation/rules: `pydantic`, `jsonschema`
+- [x] Validation/rules: `pydantic`, `jsonschema`
 - [ ] Background jobs: `celery` or `rq` + `redis`
 - [ ] Storage: `postgresql`, `minio`
 
