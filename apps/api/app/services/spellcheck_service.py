@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter
+from difflib import SequenceMatcher
 from typing import Any
 
 try:
@@ -14,6 +15,7 @@ except Exception:  # pragma: no cover - import failures are handled in runtime o
 from app.schemas.blockers import SpellIssue, SpellcheckResult
 
 WORD_RE = re.compile(r"^[A-Za-zĂÂÎȘȚăâîșț\-]+$")
+CAPITALIZED_WORD_RE = re.compile(r"^[A-ZĂÂÎȘȚ][a-zăâîșț]+$")
 
 _TOOL_CACHE: dict[str, Any] = {}
 
@@ -58,25 +60,62 @@ def _is_spell_like_issue(text: str, match: Any) -> bool:
 
 
 def _apply_replacements(text: str, issues: list[SpellIssue]) -> str:
-    """Apply first suggestion for each issue from right to left for stable offsets."""
+    """Apply chosen replacements from right to left for stable offsets."""
     corrected = text
     ordered = sorted(issues, key=lambda item: item.offset, reverse=True)
     for issue in ordered:
-        if not issue.replacements:
+        replacement = issue.chosen_replacement or (issue.replacements[0] if issue.replacements else None)
+        if not replacement:
             continue
         start = issue.offset
         end = start + issue.length
-        corrected = corrected[:start] + issue.replacements[0] + corrected[end:]
+        corrected = corrected[:start] + replacement + corrected[end:]
     return corrected
+
+
+def _candidate_confidence(token: str, suggestion: str) -> float:
+    """Compute confidence score for replacing token with suggestion."""
+    token_n = token.lower().strip()
+    suggestion_n = suggestion.lower().strip()
+    if not token_n or not suggestion_n:
+        return 0.0
+    base = SequenceMatcher(None, token_n, suggestion_n).ratio()
+    length_gap = abs(len(token_n) - len(suggestion_n))
+    penalty = min(0.18, length_gap * 0.03)
+    return max(0.0, min(1.0, base - penalty))
+
+
+def _should_auto_apply(
+    token: str,
+    suggestion: str,
+    confidence: float,
+    mode: str,
+    min_confidence: float,
+) -> bool:
+    """Decide whether a suggestion should be auto-applied."""
+    if mode == "off":
+        return False
+    if confidence < min_confidence:
+        return False
+    if mode == "safe":
+        if CAPITALIZED_WORD_RE.match(token):
+            return False
+        if abs(len(token) - len(suggestion)) > 2:
+            return False
+    return True
 
 
 def spellcheck_text_ro(
     text: str,
     language: str = "ro-RO",
     max_issues: int = 200,
-    include_corrected_text: bool = True,
+    include_corrected_text: bool = False,
+    auto_apply_mode: str = "off",
+    min_confidence: float = 0.84,
+    custom_dictionary: list[str] | None = None,
 ) -> SpellcheckResult:
     """Run Romanian spell-check and return deterministic structured issues."""
+    dict_words = {w.strip().lower() for w in (custom_dictionary or []) if w.strip()}
     tool, init_error = _get_tool(language)
     if init_error:
         return SpellcheckResult(
@@ -85,6 +124,7 @@ def spellcheck_text_ro(
             issues=[],
             duplicate_tokens=[],
             corrected_text=None,
+            auto_apply_mode="off",
             warnings=[init_error],
         )
 
@@ -97,6 +137,7 @@ def spellcheck_text_ro(
             issues=[],
             duplicate_tokens=[],
             corrected_text=None,
+            auto_apply_mode="off",
             warnings=[f"LanguageTool check failed: {exc}"],
         )
 
@@ -110,9 +151,14 @@ def spellcheck_text_ro(
         offset = int(getattr(match, "offset", 0))
         length = int(getattr(match, "errorLength", getattr(match, "error_length", 0)))
         token = text[offset : offset + length].strip()
+        if token.lower() in dict_words:
+            continue
         replacements = [str(rep) for rep in list(getattr(match, "replacements", []) or [])][:6]
         category = getattr(match, "category", None)
         category_id = str(getattr(category, "id", category)) if category is not None else None
+        best = replacements[0] if replacements else None
+        confidence = _candidate_confidence(token, best) if best else 0.0
+        auto_applied = bool(best) and _should_auto_apply(token, best, confidence, auto_apply_mode, min_confidence)
 
         issues.append(
             SpellIssue(
@@ -123,6 +169,9 @@ def spellcheck_text_ro(
                 replacements=replacements,
                 rule_id=str(getattr(match, "ruleId", getattr(match, "rule_id", "UNKNOWN"))),
                 category=category_id,
+                confidence=round(confidence, 3),
+                chosen_replacement=best if auto_applied else None,
+                auto_applied=auto_applied,
             )
         )
 
@@ -140,6 +189,28 @@ def spellcheck_text_ro(
         issues=issues,
         duplicate_tokens=duplicate_tokens,
         corrected_text=corrected_text,
+        auto_apply_mode=auto_apply_mode if auto_apply_mode in {"off", "safe", "aggressive"} else "off",
         warnings=[],
     )
 
+
+def spellcheck_parsed_payload_ro(parsed: dict[str, Any], custom_dictionary: list[str] | None = None) -> dict[str, Any]:
+    """Run field-level spell-check over parsed payload text fields."""
+    result: dict[str, Any] = {}
+    text_fields = ["title", "objectives"]
+    for field in text_fields:
+        value = parsed.get(field)
+        if isinstance(value, str) and value.strip():
+            checked = spellcheck_text_ro(value, include_corrected_text=False, custom_dictionary=custom_dictionary)
+            result[field] = checked.model_dump()
+
+    bibliography = parsed.get("bibliography")
+    if isinstance(bibliography, list):
+        items: list[dict[str, Any]] = []
+        for idx, entry in enumerate(bibliography):
+            if isinstance(entry, str) and entry.strip():
+                checked = spellcheck_text_ro(entry, include_corrected_text=False, custom_dictionary=custom_dictionary)
+                items.append({"index": idx, "value": entry, "spellcheck": checked.model_dump()})
+        if items:
+            result["bibliography"] = items
+    return result

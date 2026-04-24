@@ -159,7 +159,10 @@ def test_spellcheck_endpoint_smoke(monkeypatch) -> None:
         text: str,
         language: str = "ro-RO",
         max_issues: int = 200,
-        include_corrected_text: bool = True,
+        include_corrected_text: bool = False,
+        auto_apply_mode: str = "off",
+        min_confidence: float = 0.84,
+        custom_dictionary: list[str] | None = None,
     ) -> SpellcheckResult:
         return SpellcheckResult(
             available=True,
@@ -167,6 +170,7 @@ def test_spellcheck_endpoint_smoke(monkeypatch) -> None:
             issues=[],
             duplicate_tokens=[],
             corrected_text=text if include_corrected_text else None,
+            auto_apply_mode=auto_apply_mode if auto_apply_mode in {"off", "safe", "aggressive"} else "off",
             warnings=[],
         )
 
@@ -180,3 +184,35 @@ def test_spellcheck_endpoint_smoke(monkeypatch) -> None:
     payload = response.json()
     assert payload["data"]["available"] is True
     assert payload["data"]["language"] == "ro-RO"
+
+
+def test_pipeline_structured_includes_field_spellcheck(monkeypatch) -> None:
+    client = TestClient(app)
+
+    def fake_spellcheck_text_ro(**_kwargs) -> SpellcheckResult:
+        return SpellcheckResult(
+            available=True,
+            language="ro-RO",
+            issues=[],
+            duplicate_tokens=[],
+            corrected_text=None,
+            auto_apply_mode="off",
+            warnings=[],
+        )
+
+    monkeypatch.setattr("app.api.routes.blockers.spellcheck_text_ro", fake_spellcheck_text_ro)
+    monkeypatch.setattr("app.api.routes.blockers.spellcheck_parsed_payload_ro", lambda _parsed, custom_dictionary=None: {"title": {"available": True}})
+    response = client.post(
+        "/pipeline/run-structured?document_type=fisa",
+        files={
+            "file": (
+                "fisa.txt",
+                b"FI\xC8\x98A DISCIPLINEI\nDenumirea disciplinei: Algoritmi\nCredite: 6\nObiectivele disciplinei\nText",
+                "text/plain",
+            )
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert "field_spellcheck" in payload["data"]

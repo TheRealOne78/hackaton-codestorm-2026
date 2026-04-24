@@ -60,6 +60,10 @@ This project uses the Python library `language_tool_python` for spell checking (
 
 - Endpoint: `POST /spellcheck`
 - Integrated in: `POST /pipeline/run-structured` (returns `data.spellcheck`)
+- Default behavior is review-first: `include_corrected_text=false`, `auto_apply_mode=off`
+- Optional auto-fix modes:
+  - `safe`: only applies high-confidence suggestions
+  - `aggressive`: applies all suggestions above threshold
 
 Note:
 - LanguageTool may require a local Java runtime when starting its local server.

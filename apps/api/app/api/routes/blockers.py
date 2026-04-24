@@ -11,7 +11,7 @@ from app.schemas.blockers import Envelope, ParseRequest, ParseStructuredRequest,
 from app.services.ocr_service import ocr_from_path
 from app.services.parse_service import parse_ocr_text
 from app.services.sanitizer_service import sanitize_payload
-from app.services.spellcheck_service import spellcheck_text_ro
+from app.services.spellcheck_service import spellcheck_parsed_payload_ro, spellcheck_text_ro
 from app.services.structured_parser_service import parse_structured
 from app.services.validation_service import validate_document
 
@@ -77,11 +77,15 @@ def run_validate(payload: ValidateRequest) -> Envelope:
 @router.post("/spellcheck", response_model=Envelope)
 def run_spellcheck(payload: SpellcheckRequest) -> Envelope:
     """Run Romanian spell-check over a text payload."""
+    mode = payload.auto_apply_mode if payload.auto_apply_mode in {"off", "safe", "aggressive"} else "off"
     result = spellcheck_text_ro(
         text=payload.text,
         language=payload.language,
         max_issues=payload.max_issues,
         include_corrected_text=payload.include_corrected_text,
+        auto_apply_mode=mode,
+        min_confidence=payload.min_confidence,
+        custom_dictionary=payload.custom_dictionary,
     )
     return Envelope(data=result.model_dump(), meta={"endpoint": "/spellcheck", "language": payload.language})
 
@@ -139,10 +143,17 @@ async def run_pipeline_structured(
         document_type=sanitized["document_type"],
     )
     spell = (
-        spellcheck_text_ro(text=sanitized["clean_text"], language="ro-RO", max_issues=120, include_corrected_text=False)
+        spellcheck_text_ro(
+            text=sanitized["clean_text"],
+            language="ro-RO",
+            max_issues=120,
+            include_corrected_text=False,
+            auto_apply_mode="off",
+        )
         if spellcheck
         else None
     )
+    parsed_field_spell = spellcheck_parsed_payload_ro(parsed, custom_dictionary=["CIDIFR", "ARACIS"]) if spellcheck else {}
 
     return Envelope(
         data={
@@ -150,6 +161,7 @@ async def run_pipeline_structured(
             "sanitized": sanitized,
             "parsed": parsed,
             "spellcheck": spell.model_dump() if spell is not None else None,
+            "field_spellcheck": parsed_field_spell,
         },
         meta={"endpoint": "/pipeline/run-structured", "document_type": document_type, "spellcheck": spellcheck},
     )

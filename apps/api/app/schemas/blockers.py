@@ -114,7 +114,10 @@ class SpellcheckRequest(BaseModel):
     text: str
     language: str = "ro-RO"
     max_issues: int = 200
-    include_corrected_text: bool = True
+    include_corrected_text: bool = False
+    auto_apply_mode: Literal["off", "safe", "aggressive"] = "off"
+    min_confidence: float = 0.84
+    custom_dictionary: list[str] = Field(default_factory=list)
 
 
 class SpellIssue(BaseModel):
@@ -127,6 +130,9 @@ class SpellIssue(BaseModel):
     replacements: list[str] = Field(default_factory=list)
     rule_id: str
     category: str | None = None
+    confidence: float = 0.0
+    chosen_replacement: str | None = None
+    auto_applied: bool = False
 
 
 class SpellcheckResult(BaseModel):
@@ -137,4 +143,5 @@ class SpellcheckResult(BaseModel):
     issues: list[SpellIssue] = Field(default_factory=list)
     duplicate_tokens: list[dict[str, Any]] = Field(default_factory=list)
     corrected_text: str | None = None
+    auto_apply_mode: Literal["off", "safe", "aggressive"] = "off"
     warnings: list[str] = Field(default_factory=list)

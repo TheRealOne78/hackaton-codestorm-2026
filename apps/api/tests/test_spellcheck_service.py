@@ -60,3 +60,30 @@ def test_spellcheck_extracts_issues_and_duplicates(monkeypatch) -> None:
     assert result.corrected_text is not None
     assert "este" in result.corrected_text
 
+
+def test_spellcheck_safe_mode_auto_apply(monkeypatch) -> None:
+    text = "estee"
+    fake_matches = [
+        SimpleNamespace(
+            offset=0,
+            errorLength=5,
+            message="Possible spelling mistake found.",
+            replacements=["este"],
+            ruleId="MORFOLOGIK_RULE_RO_RO",
+            ruleIssueType="misspelling",
+            category=SimpleNamespace(id="TYPOS"),
+        )
+    ]
+    fake_tool = SimpleNamespace(check=lambda _t: fake_matches)
+    monkeypatch.setattr(spellcheck_service, "_get_tool", lambda _lang: (fake_tool, None))
+
+    result = spellcheck_service.spellcheck_text_ro(
+        text,
+        include_corrected_text=True,
+        auto_apply_mode="safe",
+        min_confidence=0.5,
+    )
+
+    assert result.issues[0].auto_applied is True
+    assert result.issues[0].chosen_replacement == "este"
+    assert result.corrected_text == "este"
